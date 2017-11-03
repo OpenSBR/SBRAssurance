@@ -21,19 +21,23 @@ namespace SBRAssurance.Model
 
 		/// <summary>
 		/// Simple parser of signature policy
+		/// 
+		/// This is a very rough implementation aimed at getting the required information in a version-independent manner
 		/// </summary>
 		/// <param name="url"></param>
-		public SignPolicy(string url)
+		/// <param name="preferredLanguage"></param>
+		public SignPolicy(string url, string preferredLanguage)
 		{
 			XmlDocument document = new XmlDocument();
 			document.Load(url);
 			_url = url;
 
 			XmlNamespaceManager nsm = new XmlNamespaceManager(new NameTable());
-			nsm.AddNamespace("sbrsp", "http://www.nltaxonomie.nl/sbr/signature_policy_schema/v1.0/signature_policy");
+			nsm.AddNamespace("sbrsp", document.SelectSingleNode("/*")?.NamespaceURI);
 			nsm.AddNamespace("ds", SignedXml.XmlDsigNamespaceUrl);
 			nsm.AddNamespace("xades", OpenSBR.Xades.XadesSignature.XadesNamespaceUrl);
 
+			// signature policy digest information
 			XmlElement policyDigest = document.SelectSingleNode("//sbrsp:SignPolicyDigestAlg", nsm) as XmlElement;
 			_policyDigest = policyDigest?.GetAttribute("Algorithm");
 			XmlElement transformChain = document.SelectSingleNode("//ds:Transforms", nsm) as XmlElement;
@@ -44,13 +48,19 @@ namespace SBRAssurance.Model
 				loadXmlInfo.Invoke(_transformChain, new object[] { transformChain });
 			}
 
-			XmlElement policyId = document.SelectSingleNode("//sbrsp:SignPolicyIdentifier/xades:Identifier", nsm) as XmlElement;
+			// policy identifier and description
+			XmlElement policyId = document.SelectSingleNode("//sbrsp:SignPolicyIdentifier/*[local-name()='Identifier']", nsm) as XmlElement;
 			_policyId = policyId?.InnerText;
-			XmlElement policyDescription = document.SelectSingleNode("//sbrsp:SignPolicyIdentifier/xades:Description", nsm) as XmlElement;
+			XmlElement policyDescription = document.SelectSingleNode($"//sbrsp:SignPolicyIdentifier/*[local-name()='Description' and @xml:lang='{preferredLanguage}']", nsm) as XmlElement;
+			if (policyDescription == null)
+				policyDescription = document.SelectNodes("//sbrsp:SignPolicyIdentifier/*[local-name()='Description']", nsm)?.Item(0) as XmlElement;
 			_policyDescription = policyDescription?.InnerText;
 
+			// supported algorithms
 			_allowedMethods = document.SelectNodes("//sbrsp:SignerAlgConstraints/sbrsp:AlgAndLength/sbrsp:AlgId", nsm).OfType<XmlElement>().Select(x => x?.InnerText).ToArray();
-			_commitmentTypes = document.SelectNodes("//sbrsp:SelCommitmentType/sbrsp:RecognizedCommitmentType/sbrsp:CommitmentIdentifier", nsm).OfType<XmlElement>().Select(x => new CommitmentType(x, nsm)).ToArray();
+
+			// commitment types
+			_commitmentTypes = document.SelectNodes("//sbrsp:SelCommitmentType/sbrsp:RecognizedCommitmentType/sbrsp:CommitmentIdentifier", nsm).OfType<XmlElement>().Select(x => new CommitmentType(x, nsm, preferredLanguage)).ToArray();
 
 			// wrong value in http://nltaxonomie.nl/sbr/signature_policy_schema/v1.0/SBR-signature-policy-v1.0.xml
 			if (_policyId == "urn:sbr:signature-policy:xml:1.0")
@@ -98,11 +108,13 @@ namespace SBRAssurance.Model
 		private string _commitmentTypeId;
 		private string _commitmentTypeDescription;
 
-		public CommitmentType(XmlElement commitmentIdentifier, XmlNamespaceManager nsm)
+		public CommitmentType(XmlElement commitmentIdentifier, XmlNamespaceManager nsm, string preferredLanguage)
 		{
-			XmlElement identifier = commitmentIdentifier.SelectSingleNode("xades:Identifier", nsm) as XmlElement;
+			XmlElement identifier = commitmentIdentifier.SelectSingleNode("*[local-name()='Identifier']", nsm) as XmlElement;
 			_commitmentTypeId = identifier?.InnerText;
-			XmlElement description = commitmentIdentifier.SelectSingleNode("xades:Description", nsm) as XmlElement;
+			XmlElement description = commitmentIdentifier.SelectSingleNode($"*[local-name()='Description' and @xml:lang='{preferredLanguage}']", nsm) as XmlElement;
+			if (description == null)
+				description = commitmentIdentifier.SelectNodes("*[local-name()='Description']", nsm)?.Item(0) as XmlElement;
 			_commitmentTypeDescription = description?.InnerText;
 		}
 

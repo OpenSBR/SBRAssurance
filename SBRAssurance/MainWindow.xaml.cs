@@ -33,7 +33,7 @@ namespace SBRAssurance
 			// read policies
 			Policies = new ObservableCollection<SignPolicy>();
 			foreach (string url in Settings.PolicyURLs)
-				Policies.Add(new SignPolicy(url));
+				Policies.Add(new SignPolicy(url, Settings.PreferredLanguage));
 			Files = new ObservableCollection<FileEntry>();
 			CertificateList = new ObservableCollection<X509Certificate2>(Utils.GetCertificates().OfType<X509Certificate2>());
 

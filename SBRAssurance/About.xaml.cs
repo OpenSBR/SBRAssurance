@@ -28,11 +28,18 @@ namespace SBRAssurance
 		public About()
 		{
 			InitializeComponent();
+
+			ApplicationVersion = typeof(MainWindow).Assembly.GetName().Version.ToString();
+			LibraryVersion = typeof(OpenSBR.Xades.XadesSignature).Assembly.GetName().Version.ToString();
+			DataContext = this;
 		}
 
 		private void Close_Click(object sender, RoutedEventArgs e)
 		{
 			Close();
 		}
+
+		public string ApplicationVersion { get; private set; }
+		public string LibraryVersion { get; private set; }
 	}
 }

@@ -1,16 +1,18 @@
 <SBRAssuranceSettings>
-	<TransformSets>
-		<Transforms name="Generic XML" defaultfor="XBRLInstance, XBRLLinkbase, XMLSchema, XML">
-			<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"/>
-		</Transforms>
-		<Transforms name="Remove DocumentAdoption">
-			<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"/>
-			<Transform Algorithm="http://www.w3.org/2002/06/xmldsig-filter2">
-				<XPath xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns="http://www.w3.org/2002/06/xmldsig-filter2" Filter="intersect">/xbrli:xbrl//*[not(starts-with(local-name(), 'DocumentAdoption'))]</XPath>
-			</Transform>
-		</Transforms>
-	</TransformSets>
-	<SignaturePolicies>
-		<SignaturePolicy>http://nltaxonomie.nl/sbr/signature_policy_schema/v1.0/SBR-signature-policy-v1.0.xml</SignaturePolicy>
-	</SignaturePolicies>
+  <TransformSets>
+    <Transforms name="Generic XML" defaultfor="XBRLInstance, XBRLLinkbase, XMLSchema, XML">
+      <Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"/>
+    </Transforms>
+    <Transforms name="Remove DocumentAdoption">
+      <Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"/>
+      <Transform Algorithm="http://www.w3.org/2002/06/xmldsig-filter2">
+        <XPath xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns="http://www.w3.org/2002/06/xmldsig-filter2" Filter="intersect">/xbrli:xbrl//*[not(starts-with(local-name(), 'DocumentAdoption'))]</XPath>
+      </Transform>
+    </Transforms>
+  </TransformSets>
+  <PreferredLanguage>en</PreferredLanguage>
+  <SignaturePolicies>
+    <SignaturePolicy>http://nltaxonomie.nl/sbr/signature_policy_schema/v2.0/SBR-signature-policy-v2.0.xml</SignaturePolicy>
+    <SignaturePolicy>http://nltaxonomie.nl/sbr/signature_policy_schema/v1.0/SBR-signature-policy-v1.0.xml</SignaturePolicy>
+  </SignaturePolicies>
 </SBRAssuranceSettings>
