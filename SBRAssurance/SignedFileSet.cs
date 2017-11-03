@@ -46,6 +46,7 @@ namespace SBRAssurance
 		public override void AddFile(string name, Stream stream)
 		{
 			string file = Path.Combine(_path, name);
+			// C# 7.0 syntax
 			if (stream is FileStream srcStream && Path.GetFullPath(srcStream.Name) == file)
 				return;
 			Copy(stream, file);
