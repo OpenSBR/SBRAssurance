@@ -25,7 +25,7 @@ namespace SBRAssurance
 			foreach (XmlElement transformSet in document.SelectNodes("SBRAssuranceSettings/TransformSets/Transforms"))
 				settings.TransformSets.Add(new TransformSet(transformSet));
 
-			settings.PreferredLanguage = document.SelectSingleNode("XBRAssuranceSettings/PreferredLanguage")?.Value ?? "en";
+			settings.PreferredLanguage = document.SelectSingleNode("SBRAssuranceSettings/PreferredLanguage")?.Value ?? "en";
 			settings.PolicyURLs = document.SelectNodes("SBRAssuranceSettings/SignaturePolicies/SignaturePolicy").OfType<XmlElement>().Select(x => x.InnerText).ToArray();
 
 			return settings;
