@@ -45,7 +45,7 @@ namespace OpenSBR.Xades
 		/// <param name="reference"></param>
 		internal XadesFile(Reference reference)
 		{
-			_uri = reference.Uri.Replace("%20", " ");
+			_uri = Uri.UnescapeDataString(reference.Uri);
 			_transformChain = reference.TransformChain;
 			_digestMethod = reference.DigestMethod;
 			_id = reference.Id;
@@ -109,7 +109,7 @@ namespace OpenSBR.Xades
 			Stream stream = (resolver != null) ? resolver(_uri) : null;
 			Reference reference = (stream != null) ? new Reference(stream) : new Reference(_uri);
 
-			reference.Uri = _uri.Replace(" ", "%20");
+			reference.Uri = Uri.EscapeDataString(_uri);
 			reference.TransformChain = _transformChain;
 			reference.DigestMethod = _digestMethod ?? SignedXml.XmlDsigSHA256Url;
 			reference.Id = _id;
