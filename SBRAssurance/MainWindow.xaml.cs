@@ -374,7 +374,7 @@ namespace SBRAssurance
 						//chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
 						SignCertIsValid = chain.Build(certificate);
 						SignCertError = (SignCertIsValid == false) ? chain.ChainStatus?.First().StatusInformation.Trim() : null;
-						SignCACert = chain.ChainElements.OfType<X509ChainElement>().SingleOrDefault(x => x.Certificate.Extensions.OfType<X509BasicConstraintsExtension>().Any(y => y.CertificateAuthority))?.Certificate;
+						SignCACert = chain.ChainElements.OfType<X509ChainElement>().LastOrDefault(x => x.Certificate.Extensions.OfType<X509BasicConstraintsExtension>().Any(y => y.CertificateAuthority))?.Certificate;
 					}
 					else
 					{
