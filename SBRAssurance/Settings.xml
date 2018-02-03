@@ -9,12 +9,6 @@
         <XPath xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns="http://www.w3.org/2002/06/xmldsig-filter2" Filter="intersect">/xbrli:xbrl//*[not(starts-with(local-name(), 'DocumentAdoption')) and not(local-name()='EmailAddressContact')]</XPath>
       </Transform>
     </Transforms>
-    <Transforms name="Remove DocumentAdoption">
-      <Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"/>
-      <Transform Algorithm="http://www.w3.org/2002/06/xmldsig-filter2">
-        <XPath xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns="http://www.w3.org/2002/06/xmldsig-filter2" Filter="intersect">/xbrli:xbrl//*[not(starts-with(local-name(), 'DocumentAdoption'))]</XPath>
-      </Transform>
-    </Transforms>
     <Transforms name="Remove DocumentAdoption and e-mail (subtract) [beware of empty-line issues]">
       <Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"/>
       <Transform Algorithm="http://www.w3.org/2002/06/xmldsig-filter2">
