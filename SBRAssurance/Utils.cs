@@ -37,7 +37,7 @@ namespace SBRAssurance
 				if (!String.IsNullOrEmpty(uri.Fragment) && uri.GetComponents(UriComponents.Path, UriFormat.Unescaped).EndsWith(".zip", StringComparison.InvariantCultureIgnoreCase))
 				{
 					ZipArchive zip = ZipFile.OpenRead(uri.LocalPath);
-					return zip.GetEntry(uri.Fragment.Substring(1))?.Open();
+					return zip.GetEntry(uri.GetComponents(UriComponents.Fragment, UriFormat.Unescaped))?.Open();
 				}
 				else
 					return File.OpenRead(uri.LocalPath);

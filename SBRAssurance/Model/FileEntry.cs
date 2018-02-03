@@ -28,7 +28,7 @@ namespace SBRAssurance.Model
 		{
 			Uri = uri;
 
-			Name = String.IsNullOrEmpty(uri.Fragment) ? Path.GetFileName(uri.GetComponents(UriComponents.Path, UriFormat.Unescaped)) : uri.Fragment.Substring(1);
+			Name = String.IsNullOrEmpty(uri.Fragment) ? Path.GetFileName(uri.GetComponents(UriComponents.Path, UriFormat.Unescaped)) : uri.GetComponents(UriComponents.Fragment, UriFormat.Unescaped);
 
 			if (stream == null)
 			{
