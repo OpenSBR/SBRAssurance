@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Xml;
@@ -81,9 +83,7 @@ namespace OpenSBR.Xades
 			FieldInfo documentInfo = typeof(XmlDsigXPathTransform).GetField("_document", BindingFlags.NonPublic | BindingFlags.Instance);
 			XmlDocument document = (XmlDocument)documentInfo.GetValue(this);
 
-			Type cXmlNodeListType = typeof(XmlDsigXPathTransform).Assembly.GetType("System.Security.Cryptography.Xml.CanonicalXmlNodeList");
-			object cXmlNodeList = Activator.CreateInstance(cXmlNodeListType, true);
-			MethodInfo cXmlAddInfo = cXmlNodeListType.GetMethod("Add");
+			CXmlNodeList cXmlNodeList = new CXmlNodeList();
 
 			// From the Xades filter specification:
 			// For each XPath expression X, in sequence, evaluate the expression and store the resulting node-set, S, along with the associated set operation.
@@ -94,29 +94,57 @@ namespace OpenSBR.Xades
 			//   Presence in a subtree-expanded node-set can be efficiently determined without actually expanding the node-set, by simply maintaining a stack or count that identifies whether any nodes from that node-set are an ancestor of the node being processed.
 
 			// build response
-			XPathNavigator navigator = document.CreateNavigator();
 			foreach (XmlDsigFilterElement e in _elements)
-				e.CreateSet(navigator);
+				e.CreateSet(document);
 
+			XPathNavigator navigator = document.CreateNavigator();
 			XPathNodeIterator iterator = navigator.Select("//. | //@*");
 			while (iterator.MoveNext())
 			{
+				XmlNode node = ((IHasXmlNode)iterator.Current).GetNode();
 				bool include = true;
 				// intersect: include = false if not in set, otherwise unchanged
 				// subtract: include = false if in set, otherwise unchanged
 				// union: include = true if in set, otherwise unchanged
 				foreach (XmlDsigFilterElement e in _elements)
-					include = e.Include(iterator.Current) ?? include;
+					include = e.Include(node) ?? include;
 				if (include)
-					cXmlAddInfo.Invoke(cXmlNodeList, new object[] { ((IHasXmlNode)iterator.Current).GetNode() });
+					cXmlNodeList.Add(node);
 			}
 			iterator = navigator.Select("//namespace::*");
 			while (iterator.MoveNext())
-				cXmlAddInfo.Invoke(cXmlNodeList, new object[] { ((IHasXmlNode)iterator.Current).GetNode() });
+				cXmlNodeList.Add(((IHasXmlNode)iterator.Current).GetNode());
 
 			// Fix propagation of xml-namespace attributes from filtered elements (.NET framework bug)
-			XmlDsigWorkaround.FixDocument(document, (XmlNodeList)cXmlNodeList);
+			XmlDsigWorkaround.FixDocument(document, cXmlNodeList);
 			return cXmlNodeList;
+		}
+
+		private class CXmlNodeList : XmlNodeList
+		{
+			private List<XmlNode> nodeList;
+
+			public CXmlNodeList()
+			{
+				nodeList = new List<XmlNode>();
+			}
+
+			public override int Count { get => nodeList.Count; }
+
+			public override XmlNode Item(int index)
+			{
+				return nodeList[index];
+			}
+
+			public override IEnumerator GetEnumerator()
+			{
+				return nodeList.GetEnumerator();
+			}
+
+			public void Add(XmlNode node)
+			{
+				nodeList.Add(node);
+			}
 		}
 
 		/// <summary>
@@ -134,7 +162,7 @@ namespace OpenSBR.Xades
 			private XmlNamespaceManager _nsMgr;
 			private XmlDSigFilterType _filter;
 			private string _xpath;
-			private XPathNodeIterator _nodeSet;
+			private HashSet<XmlNode> _nodeSet;
 
 			/// <summary>
 			/// Create filter element from XML
@@ -145,13 +173,13 @@ namespace OpenSBR.Xades
 				if (xmlElement != null && xmlElement.LocalName == "XPath")
 				{
 					string filter = xmlElement.Attributes["Filter"]?.Value;
-					if (!Enum.TryParse<XmlDSigFilterType>(filter, out _filter))
+					if (!Enum.TryParse(filter, out _filter))
 						throw new CryptographicException("Invalid transform parameters");
 
 					_xpath = xmlElement.InnerXml.Trim();
 					XmlNodeReader nodeReader = new XmlNodeReader(xmlElement);
 					_nsMgr = new XmlNamespaceManager(nodeReader.NameTable);
-					
+
 					foreach (XmlAttribute xmlAttribute in xmlElement.Attributes)
 					{
 						if (xmlAttribute.Prefix == "xmlns")
@@ -194,9 +222,9 @@ namespace OpenSBR.Xades
 			/// Initialise subset for this filter element
 			/// </summary>
 			/// <param name="navigator">Root of document</param>
-			public void CreateSet(XPathNavigator navigator)
+			public void CreateSet(XmlDocument document)
 			{
-				_nodeSet = navigator.Select(_xpath, _nsMgr);
+				_nodeSet = new HashSet<XmlNode>(document.SelectNodes(_xpath, _nsMgr).OfType<XmlNode>());
 			}
 
 			/// <summary>
@@ -204,12 +232,9 @@ namespace OpenSBR.Xades
 			/// </summary>
 			/// <param name="navigator"></param>
 			/// <returns></returns>
-			private bool IsInSet(XPathNavigator navigator)
+			private bool IsInSet(XmlNode node)
 			{
-				foreach (XPathNavigator nav in _nodeSet)
-					if (nav.IsSamePosition(navigator) || nav.IsDescendant(navigator))
-						return true;
-				return false;
+				return _nodeSet.Contains(node) || (node is XmlAttribute a ? IsInSet(a.OwnerElement) : node.ParentNode != null && IsInSet(node.ParentNode));
 			}
 
 			/// <summary>
@@ -217,9 +242,9 @@ namespace OpenSBR.Xades
 			/// </summary>
 			/// <param name="navigator"></param>
 			/// <returns></returns>
-			public bool? Include(XPathNavigator navigator)
+			public bool? Include(XmlNode node)
 			{
-				bool inSet = IsInSet(navigator);
+				bool inSet = IsInSet(node);
 				switch (_filter)
 				{
 					case XmlDSigFilterType.intersect:
