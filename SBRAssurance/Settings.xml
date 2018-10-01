@@ -19,6 +19,6 @@
   <PreferredLanguage>en</PreferredLanguage>
   <SignaturePolicies>
     <SignaturePolicy>http://nltaxonomie.nl/sbr/signature_policy_schema/v2.0/SBR-signature-policy-v2.0.xml</SignaturePolicy>
-    <SignaturePolicy>http://nltaxonomie.nl/sbr/signature_policy_schema/v1.0/SBR-signature-policy-v1.0.xml</SignaturePolicy>
+    <!--<SignaturePolicy>http://nltaxonomie.nl/sbr/signature_policy_schema/v1.0/SBR-signature-policy-v1.0.xml</SignaturePolicy>-->
   </SignaturePolicies>
 </SBRAssuranceSettings>
