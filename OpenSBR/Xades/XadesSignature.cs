@@ -20,20 +20,10 @@ namespace OpenSBR.Xades
 
 		public delegate Stream UriResolver(string uri);
 
-		private XmlDocument _document;
 		private SignedXml _signedXml;
 
 		private XmlElement _signedProperties;
 		private Reference _signedPropertiesReference;
-		private XadesSignatureProperties _signatureProperties;
-
-		private TransformChain _xadesTransformChain;
-		private string _xadesDigestMethod;
-
-		private List<XadesFile> _xadesFiles;
-
-		private bool _validSignedInfo;
-		private bool _validSignedProperties;
 
 		/// <summary>
 		/// Static constructor to add xmldsig-filter2 and apply nodelist fixes
@@ -56,20 +46,12 @@ namespace OpenSBR.Xades
 		/// </summary>
 		public XadesSignature()
 		{
-			// create a document with a root node to attach to the .NET SignedXml instance (necessary to locate the Xades reference id later on)
-			_document = new XmlDocument();
-			_document.AppendChild(_document.CreateElement("Object", SignedXml.XmlDsigNamespaceUrl));
-
-			_signedXml = new SignedXml(_document);
-			_signatureProperties = new XadesSignatureProperties();
-			_xadesFiles = new List<XadesFile>();
+			SignatureProperties = new XadesSignatureProperties();
+			Files = new List<XadesFile>();
 
 			// set defaults
 			CanonicalizationMethod = SignedXml.XmlDsigC14NWithCommentsTransformUrl;
 			SignatureMethod = SignedXml.XmlDsigRSASHA256Url;
-			_xadesTransformChain = new TransformChain();
-			_xadesTransformChain.Add(new XmlDsigC14NWithCommentsTransform());
-			_xadesDigestMethod = SignedXml.XmlDsigSHA256Url;
 		}
 
 		/// <summary>
@@ -83,12 +65,15 @@ namespace OpenSBR.Xades
 			_signedXml = new SignedXml(document);
 			_signedXml.LoadXml(document.DocumentElement);
 
+			CanonicalizationMethod = _signedXml.SignedInfo.CanonicalizationMethod;
+			SignatureMethod = _signedXml.SignedInfo.SignatureMethod;
+
 			XmlNamespaceManager nsm = new XmlNamespaceManager(new NameTable());
 			nsm.AddNamespace("ds", SignedXml.XmlDsigNamespaceUrl);
 			nsm.AddNamespace("xades", XadesSignature.XadesNamespaceUrl);
 
 			// find the xades reference
-			_xadesFiles = new List<XadesFile>();
+			Files = new List<XadesFile>();
 			foreach (Reference reference in _signedXml.SignedInfo.References)
 			{
 				if (reference.Type == XadesSignature.XadesReferenceType && reference.Uri[0] == '#')
@@ -102,67 +87,48 @@ namespace OpenSBR.Xades
 					}
 				}
 				// external reference; fix %20 in uri and allow manual resolution to stream
-				_xadesFiles.Add(new XadesFile(reference));
+				Files.Add(new XadesFile(reference));
 			}
 			if (_signedProperties == null)
 				return;
 
 			// parse signature policy
-			_signatureProperties = new XadesSignatureProperties(_signedProperties, nsm);
+			SignatureProperties = new XadesSignatureProperties(_signedProperties, nsm);
 
 			// create xades files
-			foreach (XadesFile file in _xadesFiles)
+			foreach (XadesFile file in Files)
 				file.ParseProperties(_signedProperties, nsm);
 		}
 
 		/// <summary>
 		/// Get or set the canonicalization method; use a value from System.Security.Cryptography.Xml.SignedXml
 		/// </summary>
-		public string CanonicalizationMethod
-		{
-			get { return _signedXml.SignedInfo.CanonicalizationMethod; }
-			set { _signedXml.SignedInfo.CanonicalizationMethod = value; }
-		}
+		public string CanonicalizationMethod { get; set; }
+
 		/// <summary>
 		/// Get or set the signature method; use a value from System.Security.Cryptography.Xml.SignedXml
 		/// </summary>
-		public string SignatureMethod
-		{
-			get { return _signedXml.SignedInfo.SignatureMethod; }
-			set { _signedXml.SignedInfo.SignatureMethod = value; }
-		}
+		public string SignatureMethod { get; set; }
 
 		/// <summary>
 		/// Signature properties (Signature policy)
 		/// </summary>
-		public XadesSignatureProperties SignatureProperties
-		{
-			get { return _signatureProperties; }
-		}
+		public XadesSignatureProperties SignatureProperties { get; }
 
 		/// <summary>
 		/// List of files to sign
 		/// </summary>
-		public List<XadesFile> Files
-		{
-			get { return _xadesFiles; }
-		}
+		public List<XadesFile> Files { get; }
 
 		/// <summary>
 		/// Flag indicating whether the XmlDsig <SignedInfo> matched the signature after the last call to CheckSignature
 		/// </summary>
-		public bool ValidSignedInfo
-		{
-			get { return _validSignedInfo; }
-		}
+		public bool ValidSignedInfo { get; private set; }
 
 		/// <summary>
 		/// Flag indicating whether the Xades <SignedProperties> hash matched the hash value stored in the corresponding reference after the last call to CheckSignature
 		/// </summary>
-		public bool ValidSignedProperties
-		{
-			get { return _validSignedProperties; }
-		}
+		public bool ValidSignedProperties { get; private set; }
 
 		/// <summary>
 		/// Create Xades signature of the included files
@@ -172,36 +138,48 @@ namespace OpenSBR.Xades
 		/// <returns></returns>
 		public Stream CreateSignature(X509Certificate2 certificate, UriResolver resolver = null)
 		{
+			XmlDocument document = new XmlDocument();
+			document.AppendChild(document.CreateElement("Object", SignedXml.XmlDsigNamespaceUrl));
+
+			SignedXml signedXml = new SignedXml(document);
+			signedXml.SignedInfo.CanonicalizationMethod = CanonicalizationMethod;
+			signedXml.SignedInfo.SignatureMethod = SignatureMethod;
+
+			// default settings for signature properties
+			TransformChain xadesTransformChain = new TransformChain();
+			xadesTransformChain.Add(new XmlDsigC14NWithCommentsTransform());
+			string xadesDigestMethod = SignedXml.XmlDsigSHA256Url;
+
 			// create valid ids for all files
 			CreateFileIds();
 
 			// build xades XML
-			XmlElement signatureProperties = _signatureProperties.CreateXadesSignatureProperties(_document, certificate);
-			XmlElement dataObjectProperties = CreateXadesDataObjectProperties(_document);
-			XmlElement qualifyingProperties = CreateXadesQualifyingProperties(_document, signatureProperties, dataObjectProperties);
-			_document.DocumentElement.AppendChild(qualifyingProperties);
+			XmlElement signatureProperties = SignatureProperties.CreateXadesSignatureProperties(document, certificate);
+			XmlElement dataObjectProperties = CreateXadesDataObjectProperties(document);
+			XmlElement qualifyingProperties = CreateXadesQualifyingProperties(document, signatureProperties, dataObjectProperties);
+			document.DocumentElement.AppendChild(qualifyingProperties);
 
 			// add reference to xades XML
-			_signedXml.AddObject(new DataObject(null, null, null, qualifyingProperties));
-			_signedPropertiesReference = new Reference($"#{XadesSignedPropertiesId}") { TransformChain = _xadesTransformChain, DigestMethod = _xadesDigestMethod, Type = XadesSignature.XadesReferenceType };
-			_signedXml.AddReference(_signedPropertiesReference);
-			_signedXml.Signature.Id = XadesSignature.XadesSignatureRootId;
+			signedXml.AddObject(new DataObject(null, null, null, qualifyingProperties));
+			Reference signedPropertiesReference = new Reference($"#{XadesSignedPropertiesId}") { TransformChain = xadesTransformChain, DigestMethod = xadesDigestMethod, Type = XadesSignature.XadesReferenceType };
+			signedXml.AddReference(signedPropertiesReference);
+			signedXml.Signature.Id = XadesSignature.XadesSignatureRootId;
 
 			// add reference for each file
-			foreach (XadesFile file in _xadesFiles)
-				_signedXml.AddReference(file.GetReference(resolver));
+			foreach (XadesFile file in Files)
+				signedXml.AddReference(file.GetReference(resolver));
 
 			// set key
 			KeyInfo keyInfo = new KeyInfo();
 			keyInfo.AddClause(new KeyInfoX509Data(certificate));
-			_signedXml.SigningKey = certificate.GetRSAPrivateKey();
-			_signedXml.KeyInfo = keyInfo;
+			signedXml.SigningKey = certificate.GetRSAPrivateKey();
+			signedXml.KeyInfo = keyInfo;
 
 			// calculate signature
-			_signedXml.ComputeSignature();
-			XmlElement root = _signedXml.GetXml();
+			signedXml.ComputeSignature();
+			XmlElement root = signedXml.GetXml();
 
-			return new MemoryStream(Encoding.UTF8.GetBytes(root.OuterXml));
+			return new MemoryStream(Encoding.UTF8.GetBytes(document.CreateXmlDeclaration("1.0", "UTF-8", null).OuterXml + root.OuterXml));
 		}
 
 		/// <summary>
@@ -215,11 +193,11 @@ namespace OpenSBR.Xades
 		{
 			XmlElement qualifyingProperties = document.CreateElement("QualifyingProperties", XadesSignature.XadesNamespaceUrl);
 			qualifyingProperties.SetAttribute("Target", $"#{XadesSignature.XadesSignatureRootId}");
-			_signedProperties = qualifyingProperties.CreateChild("SignedProperties", XadesSignature.XadesNamespaceUrl);
-			_signedProperties.SetAttribute("Id", XadesSignature.XadesSignedPropertiesId);
+			XmlElement signedProperties = qualifyingProperties.CreateChild("SignedProperties", XadesSignature.XadesNamespaceUrl);
+			signedProperties.SetAttribute("Id", XadesSignature.XadesSignedPropertiesId);
 
-			_signedProperties.AppendChild(signatureProperties);
-			_signedProperties.AppendChild(dataObjectProperties);
+			signedProperties.AppendChild(signatureProperties);
+			signedProperties.AppendChild(dataObjectProperties);
 
 			return qualifyingProperties;
 		}
@@ -232,9 +210,9 @@ namespace OpenSBR.Xades
 		private XmlElement CreateXadesDataObjectProperties(XmlDocument document)
 		{
 			XmlElement dataObjectProperties = document.CreateElement("SignedDataObjectProperties", XadesSignature.XadesNamespaceUrl);
-			foreach (XadesFile file in _xadesFiles)
+			foreach (XadesFile file in Files)
 				dataObjectProperties.AppendChild(file.GetObjectFormat(document));
-			foreach (XadesFile file in _xadesFiles)
+			foreach (XadesFile file in Files)
 				dataObjectProperties.AppendChild(file.GetCommitmentTypeIndication(document));
 			return dataObjectProperties;
 		}
@@ -246,7 +224,7 @@ namespace OpenSBR.Xades
 		{
 			HashSet<string> ids = new HashSet<string>();
 			int n = 0;
-			foreach (XadesFile file in _xadesFiles)
+			foreach (XadesFile file in Files)
 			{
 				if (file.Id == null || ids.Contains(file.Id))
 				{
@@ -265,8 +243,7 @@ namespace OpenSBR.Xades
 		/// <returns></returns>
 		public bool CheckSignature(UriResolver resolver = null)
 		{
-			X509Certificate2 certificate;
-			return CheckSignature(out certificate, resolver);
+			return CheckSignature(out X509Certificate2 certificate, resolver);
 		}
 
 		/// <summary>
@@ -277,17 +254,21 @@ namespace OpenSBR.Xades
 		/// <returns></returns>
 		public bool CheckSignature(out X509Certificate2 certificate, UriResolver resolver = null)
 		{
+			certificate = null;
+
+			if (_signedXml == null)
+				return false;
+
 			// find appropriate public key and verify signature
 			MethodInfo checkSignedInfo = typeof(SignedXml).GetMethod("CheckSignedInfo", BindingFlags.NonPublic | BindingFlags.Instance, null, new Type[] { typeof(AsymmetricAlgorithm) }, null);
 
 			// find certificate
-			certificate = null;
-			_validSignedInfo = false;
+			ValidSignedInfo = false;
 			foreach (KeyValuePair<AsymmetricAlgorithm, X509Certificate2> algInfo in GetPublicKeys(_signedXml.KeyInfo))
 			{
 				if ((bool)checkSignedInfo.Invoke(_signedXml, new object[] { algInfo.Key }))
 				{
-					_validSignedInfo = true;
+					ValidSignedInfo = true;
 					certificate = algInfo.Value;
 					break;
 				}
@@ -295,7 +276,7 @@ namespace OpenSBR.Xades
 
 			// verify referenced document hashes
 			bool validReferences = true;
-			foreach (XadesFile file in _xadesFiles)
+			foreach (XadesFile file in Files)
 				validReferences = file.CheckDigest(resolver) && validReferences;
 
 			// verify Xades signed properties
@@ -305,12 +286,12 @@ namespace OpenSBR.Xades
 				using (TextReader textReader = new StringReader(_signedProperties.OuterXml))
 					document.Load(XmlReader.Create(textReader));
 				byte[] xadesDigest = XadesUtils.CalculateHash(document, _signedPropertiesReference.TransformChain, _signedPropertiesReference.DigestMethod);
-				_validSignedProperties = XadesUtils.DigestEqual(xadesDigest, _signedPropertiesReference.DigestValue);
+				ValidSignedProperties = XadesUtils.DigestEqual(xadesDigest, _signedPropertiesReference.DigestValue);
 			}
 			else
-				_validSignedProperties = false;
+				ValidSignedProperties = false;
 
-			return _validSignedInfo && validReferences && _validSignedProperties;
+			return ValidSignedInfo && validReferences && ValidSignedProperties;
 		}
 
 		/// <summary>
