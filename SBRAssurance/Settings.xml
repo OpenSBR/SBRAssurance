@@ -5,7 +5,7 @@
     </Transforms>
     <Transforms name="Remove DocumentAdoption and e-mail (subtract, remove whitespace)">
       <Transform Algorithm="http://www.w3.org/2002/06/xmldsig-filter2">
-        <XPath xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns="http://www.w3.org/2002/06/xmldsig-filter2" Filter="subtract">/xbrli:xbrl/*[local-name()='DocumentAdoptionStatus' or local-name()='DocumentAdoptionDate' or local-name()='EmailAddressContact'] | //text()[normalize-space()='']</XPath>
+        <XPath xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns="http://www.w3.org/2002/06/xmldsig-filter2" Filter="subtract">/xbrli:xbrl/*[local-name()='DocumentAdoptionStatus' or local-name()='DocumentAdoptionDate' or local-name()='EmailAddressContact' or local-name()='EmailAddressFull'] | //text()[normalize-space()='']</XPath>
       </Transform>
       <Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"/>
     </Transforms>
