@@ -25,8 +25,10 @@ namespace SBRAssurance
 			foreach (XmlElement transformSet in document.SelectNodes("SBRAssuranceSettings/TransformSets/Transforms"))
 				settings.TransformSets.Add(new TransformSet(transformSet));
 
-			settings.PreferredLanguage = document.SelectSingleNode("SBRAssuranceSettings/PreferredLanguage")?.Value ?? "en";
+			settings.PreferredLanguage = document.SelectSingleNode("SBRAssuranceSettings/PreferredLanguage")?.InnerText ?? "en";
 			settings.PolicyURLs = document.SelectNodes("SBRAssuranceSettings/SignaturePolicies/SignaturePolicy").OfType<XmlElement>().Select(x => x.InnerText).ToArray();
+			var xx = document.SelectSingleNode("SBRAssuranceSettings/AllowAllCertificates");
+			settings.AllowAllCertificates = document.SelectSingleNode("SBRAssuranceSettings/AllowAllCertificates")?.InnerText?.ToLower() == "true";
 
 			return settings;
 		}
@@ -34,5 +36,7 @@ namespace SBRAssurance
 		public List<TransformSet> TransformSets { get; set; }
 		public string PreferredLanguage { get; set; }
 		public string[] PolicyURLs { get; set; }
+
+		public bool AllowAllCertificates { get; set; }
 	}
 }

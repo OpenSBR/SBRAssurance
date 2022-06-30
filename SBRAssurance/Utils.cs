@@ -14,12 +14,13 @@ namespace SBRAssurance
 		/// List all certificate with a private key and usage non-repudiation
 		/// </summary>
 		/// <returns></returns>
-		public static X509Certificate2Collection GetCertificates()
+		public static X509Certificate2Collection GetCertificates(bool allowAllCertificate = false)
 		{
 			using (X509Store store = new X509Store(StoreName.My, StoreLocation.CurrentUser))
 			{
 				store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
-				X509Certificate2Collection collection = store.Certificates.Find(X509FindType.FindByKeyUsage, X509KeyUsageFlags.NonRepudiation, true);
+
+				X509Certificate2Collection collection = allowAllCertificate ? store.Certificates : store.Certificates.Find(X509FindType.FindByKeyUsage, X509KeyUsageFlags.NonRepudiation, true);
 				for (int i = collection.Count - 1; i >= 0; i--)
 					if (!collection[i].HasPrivateKey)
 						collection.RemoveAt(i);

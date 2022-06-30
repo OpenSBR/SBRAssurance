@@ -35,7 +35,7 @@ namespace SBRAssurance
 			foreach (string url in Settings.PolicyURLs)
 				Policies.Add(new SignPolicy(url, Settings.PreferredLanguage));
 			Files = new ObservableCollection<FileEntry>();
-			CertificateList = new ObservableCollection<X509Certificate2>(Utils.GetCertificates().OfType<X509Certificate2>());
+			CertificateList = new ObservableCollection<X509Certificate2>(Utils.GetCertificates(Settings.AllowAllCertificates).OfType<X509Certificate2>());
 
 			// set defaults
 			SelectedPolicy = Policies.FirstOrDefault();
@@ -281,7 +281,7 @@ namespace SBRAssurance
 
 				// set signature method
 				xadesSignature.CanonicalizationMethod = SignedXml.XmlDsigC14NWithCommentsTransformUrl;
-				xadesSignature.SignatureMethod = SignedXml.XmlDsigRSASHA256Url;		// should check if allowed in policy
+				xadesSignature.SignatureMethod = SignedXml.XmlDsigRSASHA256Url;     // should check if allowed in policy
 
 				// prepare and add file descriptors
 				foreach (FileEntry file in Files)
